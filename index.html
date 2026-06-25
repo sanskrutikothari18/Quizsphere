@@ -1361,6 +1361,21 @@
     </a>
   </div>
 
+  <!-- Custom Confirm Modal -->
+  <div id="confirm-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="glass-modal max-w-md w-full p-8 rounded-3xl border border-white/10 text-center shadow-2xl animate-float">
+      <div class="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20" id="confirm-modal-icon-container">
+        <span class="material-symbols-outlined text-red-400 text-3xl" id="confirm-modal-icon">logout</span>
+      </div>
+      <h3 class="font-headline-md text-headline-md font-bold text-on-surface mb-3" id="confirm-modal-title">Are you sure?</h3>
+      <p id="confirm-modal-message" class="text-body-sm text-on-surface-variant mb-6 px-2"></p>
+      <div class="flex gap-4">
+        <button id="confirm-modal-cancel" class="flex-1 py-3 border border-white/10 rounded-xl font-bold text-sm text-on-surface hover:bg-white/5 transition-all">Cancel</button>
+        <button id="confirm-modal-confirm" class="flex-1 py-3 bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold text-sm rounded-xl hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all">Log Out</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Primary Application Script -->
   <script src="app-v1.js?v=5"></script>
 </body>

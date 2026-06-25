@@ -179,14 +179,14 @@ function parseCloudflaredOutput(text) {
 
 // Cleanup cloudflared on exit
 process.on('exit', () => {
-  try { cloudflared.kill(); } catch (e) {}
+  try { cloudflared.kill(); } catch (e) { }
 });
 process.on('SIGINT', () => {
-  try { cloudflared.kill(); } catch (e) {}
+  try { cloudflared.kill(); } catch (e) { }
   process.exit();
 });
 process.on('SIGTERM', () => {
-  try { cloudflared.kill(); } catch (e) {}
+  try { cloudflared.kill(); } catch (e) { }
   process.exit();
 });
 

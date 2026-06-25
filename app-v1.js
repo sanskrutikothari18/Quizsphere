@@ -146,6 +146,7 @@ class Router {
 }
 
 const router = new Router();
+window.router = router;
 
 // ==========================================
 // 3. AUDIO SYNTHESIZER (WEB AUDIO API)
@@ -362,15 +363,21 @@ class Auth {
 
   logout() {
     audioSynth.playClick();
-    if (confirm('Are you sure you want to log out? Custom quizzes and progress will remain saved locally.')) {
-      userState = { ...DEFAULT_USER };
-      saveUser();
-      router.navigate('landing');
-    }
+    showConfirm(
+      'Are you sure you want to log out? Custom quizzes and progress will remain saved locally.',
+      () => {
+        userState = { ...DEFAULT_USER };
+        saveUser();
+        router.navigate('landing');
+      },
+      'Log Out',
+      true
+    );
   }
 }
 
 const auth = new Auth();
+window.auth = auth;
 
 // ==========================================
 // 5. STANDARD AND CUSTOM QUIZZES DATABASE
@@ -515,19 +522,24 @@ class QuizzesDatabase {
 
   deleteCustomQuiz(id) {
     audioSynth.playClick();
-    if (confirm('Are you sure you want to delete this custom quiz? This action cannot be undone.')) {
-      const quiz = this.customQuizzes.find(q => q.id === id);
-      this.customQuizzes = this.customQuizzes.filter(q => q.id !== id);
-      localStorage.setItem('qs_custom_quizzes', JSON.stringify(this.customQuizzes));
-      this.renderQuizzes();
+    showConfirm(
+      'Are you sure you want to delete this custom quiz? This action cannot be undone.',
+      () => {
+        const quiz = this.customQuizzes.find(q => q.id === id);
+        this.customQuizzes = this.customQuizzes.filter(q => q.id !== id);
+        localStorage.setItem('qs_custom_quizzes', JSON.stringify(this.customQuizzes));
+        this.renderQuizzes();
 
-      // If the quiz has a PIN, delete it from the server too
-      if (quiz && quiz.pin) {
-        const apiBase = (localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
-        fetch(`${apiBase}/api/room/${quiz.pin}`, { method: 'DELETE' })
-          .catch(err => console.log('Quiz room not active or failed to delete on server', err));
-      }
-    }
+        // If the quiz has a PIN, delete it from the server too
+        if (quiz && quiz.pin) {
+          const apiBase = (localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
+          fetch(`${apiBase}/api/room/${quiz.pin}`, { method: 'DELETE' })
+            .catch(err => console.log('Quiz room not active or failed to delete on server', err));
+        }
+      },
+      'Delete',
+      true
+    );
   }
 
   renderQuizzes() {
@@ -643,6 +655,7 @@ class QuizzesDatabase {
 }
 
 const quizzesDb = new QuizzesDatabase();
+window.quizzesDb = quizzesDb;
 
 // ==========================================
 // 6. INTERACTIVE QUIZ ENGINE
@@ -1045,6 +1058,7 @@ class QuizEngine {
 }
 
 const quizEngine = new QuizEngine();
+window.quizEngine = quizEngine;
 
 // ==========================================
 // 7. CREATOR STUDIO PANEL
@@ -1278,18 +1292,24 @@ class CreatorStudio {
   clearLeaderboard() {
     const pinEl = document.getElementById('create-pin');
     if (!pinEl || !pinEl.value) return;
-    if (!confirm('Clear all students from the lobby? You will need to host a new quiz.')) return;
-    fetch(`/api/room/${pinEl.value}`, { method: 'DELETE' })
-      .then(() => {
-        this.stopLeaderboardSync();
-        pinEl.value = '';
-        const panel = document.getElementById('create-qr-panel');
-        if (panel) panel.classList.add('hidden');
-        const board = document.getElementById('create-live-leaderboard');
-        if (board) board.innerHTML = '<p class="text-xs text-on-surface-variant italic text-center py-4">Waiting for students to join...</p>';
-        alert('Lobby cleared. Click "Host Live Quiz" to start a new session.');
-      })
-      .catch(() => alert('Could not clear lobby.'));
+    showConfirm(
+      'Clear all students from the lobby? You will need to host a new quiz.',
+      () => {
+        fetch(`/api/room/${pinEl.value}`, { method: 'DELETE' })
+          .then(() => {
+            this.stopLeaderboardSync();
+            pinEl.value = '';
+            const panel = document.getElementById('create-qr-panel');
+            if (panel) panel.classList.add('hidden');
+            const board = document.getElementById('create-live-leaderboard');
+            if (board) board.innerHTML = '<p class="text-xs text-on-surface-variant italic text-center py-4">Waiting for students to join...</p>';
+            alert('Lobby cleared. Click "Host Live Quiz" to start a new session.');
+          })
+          .catch(() => alert('Could not clear lobby.'));
+      },
+      'Clear Lobby',
+      true
+    );
   }
 
   // Copy the share URL to clipboard
@@ -1433,6 +1453,7 @@ class CreatorStudio {
 }
 
 const creatorStudio = new CreatorStudio();
+window.creatorStudio = creatorStudio;
 
 // ==========================================
 // 8. PERFORMANCE ANALYTICS PANEL
@@ -1903,23 +1924,28 @@ class LobbyEngine {
   deleteLobby() {
     audioSynth.playClick();
     if (!this.activeRoomPin) return;
-    if (confirm('Are you sure you want to delete this live quiz room? All joined students will be disconnected.')) {
-      const cleanPin = this.activeRoomPin.replace(/\s/g, '');
-      const apiBase = (localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
-      fetch(`${apiBase}/api/room/${cleanPin}`, { method: 'DELETE' })
-        .then(() => {
-          clearInterval(this.joinTimer);
-          if (this.podiumPollInterval) clearInterval(this.podiumPollInterval);
-          this.activeRoomPin = null;
-          this.activeQuizId = null;
-          alert('Lobby deleted successfully.');
-          router.navigate('dashboard');
-        })
-        .catch(err => {
-          console.error(err);
-          alert('Could not delete room from server.');
-        });
-    }
+    showConfirm(
+      'Are you sure you want to delete this live quiz room? All joined students will be disconnected.',
+      () => {
+        const cleanPin = this.activeRoomPin.replace(/\s/g, '');
+        const apiBase = (localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
+        fetch(`${apiBase}/api/room/${cleanPin}`, { method: 'DELETE' })
+          .then(() => {
+            clearInterval(this.joinTimer);
+            if (this.podiumPollInterval) clearInterval(this.podiumPollInterval);
+            this.activeRoomPin = null;
+            this.activeQuizId = null;
+            alert('Lobby deleted successfully.');
+            router.navigate('dashboard');
+          })
+          .catch(err => {
+            console.error(err);
+            alert('Could not delete room from server.');
+          });
+      },
+      'Delete Room',
+      true
+    );
   }
 
   startGame() {
@@ -2048,8 +2074,56 @@ class LobbyEngine {
 }
 
 const lobbyEngine = new LobbyEngine();
+window.lobbyEngine = lobbyEngine;
 
 const analytics = new Analytics();
+window.analytics = analytics;
+
+function showConfirm(message, onConfirm, actionText = 'Confirm', isDanger = true) {
+  const modal = document.getElementById('confirm-modal');
+  const messageEl = document.getElementById('confirm-modal-message');
+  const confirmBtn = document.getElementById('confirm-modal-confirm');
+  const cancelBtn = document.getElementById('confirm-modal-cancel');
+  const titleEl = document.getElementById('confirm-modal-title');
+  const iconEl = document.getElementById('confirm-modal-icon');
+  const iconContainerEl = document.getElementById('confirm-modal-icon-container');
+
+  if (!modal || !messageEl || !confirmBtn || !cancelBtn) return;
+
+  messageEl.textContent = message;
+  confirmBtn.textContent = actionText;
+
+  if (isDanger) {
+    if (titleEl) titleEl.textContent = "Are you sure?";
+    if (iconEl) iconEl.textContent = "warning";
+    if (iconContainerEl) iconContainerEl.className = "w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20";
+    if (iconEl) iconEl.className = "material-symbols-outlined text-red-400 text-3xl";
+    confirmBtn.className = "flex-1 py-3 bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold text-sm rounded-xl hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all";
+  } else {
+    if (titleEl) titleEl.textContent = "Confirm Action";
+    if (iconEl) iconEl.textContent = "info";
+    if (iconContainerEl) iconContainerEl.className = "w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/20";
+    if (iconEl) iconEl.className = "material-symbols-outlined text-primary text-3xl";
+    confirmBtn.className = "flex-1 py-3 bg-gradient-to-r from-primary to-secondary text-on-primary font-bold text-sm rounded-xl hover:shadow-[0_0_20px_rgba(208,188,255,0.3)] transition-all";
+  }
+
+  const newConfirmBtn = confirmBtn.cloneNode(true);
+  const newCancelBtn = cancelBtn.cloneNode(true);
+  confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+  cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+
+  modal.classList.remove('hidden');
+
+  newCancelBtn.addEventListener('click', () => {
+    modal.classList.add('hidden');
+  });
+
+  newConfirmBtn.addEventListener('click', () => {
+    modal.classList.add('hidden');
+    onConfirm();
+  });
+}
+window.showConfirm = showConfirm;
 
 // ==========================================
 // 9. WINDOW ONLOAD AND SCROLL INTERACTION
