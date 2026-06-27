@@ -1,0 +1,5 @@
+node_modules/
+cloudflared.exe
+open_firewall.bat
+*.log
+.env

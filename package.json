@@ -4,6 +4,7 @@
   "description": "QuizSphere is a high-fidelity, gamified Single Page Application (SPA) built for students, professionals, and trivia enthusiasts. It utilizes a gorgeous midnight-blue aesthetic with neon-glow highlights, glassmorphism containers, dynamic CSS animations, and interactive audio feedback.",
   "main": "app-v1.js",
   "scripts": {
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -12,6 +13,7 @@
   "type": "commonjs",
   "dependencies": {
     "cors": "^2.8.6",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "xlsx": "^0.18.5"
   }
 }

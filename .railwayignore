@@ -1,0 +1,5 @@
+cloudflared.exe
+node_modules
+.git
+open_firewall.bat
+README.md

@@ -5,57 +5,82 @@
   <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
   <title>QuizSphere | Ignite Your Knowledge</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <!-- ⚙️ Backend API URL — set to Railway URL after deployment -->
+  <script>
+    // QS_API_BASE: Railway backend URL (e.g. https://quizsphere.up.railway.app)
+    // Leave empty string for local dev — falls back to window.location.origin
+    window.QS_API_BASE = '';
+  </script>
+
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&amp;display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
   
   <style>
+    :root {
+      --color-primary: #6366f1;
+      --color-primary-dark: #4f46e5;
+      --color-secondary: #8b5cf6;
+      --color-secondary-dark: #7c3aed;
+      --color-bg-base: #0f0c1b;
+      --color-bg-card: rgba(26, 22, 49, 0.85);
+      --color-border: rgba(99, 102, 241, 0.25);
+      --color-text-main: #e2e8f0;
+      --color-text-muted: #94a3b8;
+
+      /* Option Colors */
+      --color-opt-1: #e21b3c;
+      --color-opt-2: #1368ce;
+      --color-opt-3: #d89e00;
+      --color-opt-4: #26890c;
+    }
+
     @layer base {
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #0b1326;
-        color: #dae2fd;
+        background: radial-gradient(circle at top, #1e1b4b 0%, #0f0c1b 100%) !important;
+        color: var(--color-text-main);
         overflow-x: hidden;
       }
     }
 
     .glass-panel {
-      background: rgba(11, 19, 38, 0.6);
+      background: rgba(15, 12, 27, 0.6);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .glass-modal {
-      background: rgba(11, 19, 38, 0.82);
+      background: var(--color-bg-card);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      box-shadow: 0 0 40px rgba(208, 188, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 40px rgba(99, 102, 241, 0.15);
+      border: 1px solid var(--color-border);
     }
 
     .glass-card-interactive {
-      background: rgba(30, 41, 59, 0.4);
+      background: rgba(15, 12, 27, 0.6);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.05);
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .glass-card-interactive:hover {
-      border-color: rgba(208, 188, 255, 0.4);
-      background: rgba(30, 41, 59, 0.6);
-      box-shadow: 0 0 25px rgba(208, 188, 255, 0.15);
+      border-color: var(--color-border);
+      background: rgba(99, 102, 241, 0.15);
+      box-shadow: 0 0 25px rgba(99, 102, 241, 0.2);
       transform: translateY(-4px);
     }
 
     .glass-card-interactive:focus-within {
-      border-color: #d0bcff;
-      background: rgba(30, 41, 59, 0.7);
-      box-shadow: 0 0 20px rgba(208, 188, 255, 0.1);
+      border-color: var(--color-primary);
+      background: rgba(99, 102, 241, 0.15);
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
     }
 
     .hero-glow {
-      background: radial-gradient(circle at 50% 50%, rgba(208, 188, 255, 0.15) 0%, rgba(11, 19, 38, 0) 70%);
+      background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.15) 0%, rgba(15, 12, 27, 0) 70%);
     }
 
     .shine-border {
@@ -86,7 +111,7 @@
     }
 
     .btn-glow:hover {
-      box-shadow: 0 0 15px rgba(208, 188, 255, 0.4);
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
     }
 
     /* Transition classes for page swapper */
@@ -105,6 +130,25 @@
     body {
       min-height: max(884px, 100dvh);
     }
+
+    /* Option background colors */
+    .opt-bg-1 { background-color: var(--color-opt-1) !important; }
+    .opt-bg-2 { background-color: var(--color-opt-2) !important; }
+    .opt-bg-3 { background-color: var(--color-opt-3) !important; }
+    .opt-bg-4 { background-color: var(--color-opt-4) !important; }
+
+    /* Alert styles */
+    .alert-error {
+      background: rgba(239, 68, 68, 0.15) !important;
+      border: 1px solid rgba(239, 68, 68, 0.3) !important;
+      color: #fca5a5 !important;
+    }
+
+    .alert-info {
+      background: rgba(99, 102, 241, 0.15) !important;
+      border: 1px solid rgba(99, 102, 241, 0.3) !important;
+      color: #a5b4fc !important;
+    }
   </style>
 
   <script id="tailwind-config">
@@ -113,53 +157,20 @@
       theme: {
         extend: {
           "colors": {
-            "on-secondary": "#003640",
-            "on-background": "#dae2fd",
-            "on-error-container": "#ffdad6",
-            "surface": "#0b1326",
-            "outline": "#958ea0",
+            "primary": "#6366f1",
+            "primary-dark": "#4f46e5",
+            "secondary": "#8b5cf6",
+            "secondary-dark": "#7c3aed",
+            "background": "#0f0c1b",
+            "surface": "rgba(26, 22, 49, 0.85)",
+            "surface-container": "rgba(15, 12, 27, 0.6)",
             "surface-container-lowest": "#060e20",
-            "tertiary-fixed": "#ffd9e4",
-            "surface-container-high": "#222a3d",
-            "on-secondary-fixed": "#001f26",
-            "tertiary-fixed-dim": "#ffb0cd",
-            "on-tertiary": "#640039",
-            "on-secondary-fixed-variant": "#004e5c",
-            "surface-bright": "#31394d",
-            "surface-container-low": "#131b2e",
-            "on-surface-variant": "#cbc3d7",
-            "surface-dim": "#0b1326",
-            "on-primary": "#3c0091",
-            "primary-fixed": "#e9ddff",
-            "on-surface": "#dae2fd",
-            "on-primary-fixed-variant": "#5516be",
-            "inverse-surface": "#dae2fd",
-            "primary-fixed-dim": "#d0bcff",
-            "secondary": "#4cd7f6",
-            "on-error": "#690005",
-            "background": "#0b1326",
-            "inverse-primary": "#6d3bd7",
-            "surface-container-highest": "#2d3449",
-            "inverse-on-surface": "#283044",
-            "on-primary-fixed": "#23005c",
-            "secondary-fixed": "#acedff",
-            "surface-tint": "#d0bcff",
-            "on-tertiary-container": "#570032",
-            "on-tertiary-fixed-variant": "#8c0053",
-            "surface-variant": "#2d3449",
-            "on-secondary-container": "#00424e",
-            "primary": "#d0bcff",
-            "tertiary": "#ffb0cd",
-            "error-container": "#93000a",
-            "on-tertiary-fixed": "#3e0022",
-            "secondary-fixed-dim": "#4cd7f6",
-            "primary-container": "#a078ff",
-            "surface-container": "#171f33",
-            "tertiary-container": "#f751a1",
-            "on-primary-container": "#340080",
-            "outline-variant": "#494454",
-            "error": "#ffb4ab",
-            "secondary-container": "#03b5d3"
+            "surface-container-low": "rgba(15, 12, 27, 0.4)",
+            "surface-container-high": "rgba(26, 22, 49, 0.95)",
+            "outline": "rgba(99, 102, 241, 0.25)",
+            "on-surface": "#e2e8f0",
+            "on-surface-variant": "#94a3b8",
+            "on-background": "#e2e8f0"
           },
           "borderRadius": {
             "DEFAULT": "0.25rem",
@@ -854,18 +865,31 @@
       </div>
 
       <!-- Question display card -->
-      <div class="glass-modal rounded-3xl p-8 border border-white/10 shadow-2xl text-left relative overflow-hidden mb-6">
-        <!-- Floating details line -->
-        <div class="w-full bg-white/5 h-1.5 rounded-full mb-6 overflow-hidden">
-          <div id="quiz-run-progress-bar" class="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-300" style="width: 10%"></div>
-        </div>
-        <p id="quiz-run-question-text" class="text-lg md:text-xl font-bold text-on-surface mb-8 leading-relaxed">
-          Which HTML5 tag is used to specify a footer for a document or section?
-        </p>
+      <div id="quiz-question-container" class="space-y-6">
+        <div class="glass-modal rounded-3xl p-8 border border-white/10 shadow-2xl text-left relative overflow-hidden mb-6">
+          <!-- Floating details line -->
+          <div class="w-full bg-white/5 h-1.5 rounded-full mb-6 overflow-hidden">
+            <div id="quiz-run-progress-bar" class="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-300" style="width: 10%"></div>
+          </div>
+          <p id="quiz-run-question-text" class="text-lg md:text-xl font-bold text-on-surface mb-8 leading-relaxed">
+            Which HTML5 tag is used to specify a footer for a document or section?
+          </p>
 
-        <!-- Options Container -->
-        <div class="grid grid-cols-1 gap-4" id="quiz-run-options-grid">
-          <!-- Populated in app.js -->
+          <!-- Options Container -->
+          <div class="grid grid-cols-1 gap-4" id="quiz-run-options-grid">
+            <!-- Populated in app.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Player Leaderboard display container -->
+      <div id="quiz-leaderboard-container" class="hidden glass-modal rounded-3xl p-8 border border-white/10 shadow-2xl text-left mb-6">
+        <h4 class="text-sm font-bold uppercase tracking-wider text-secondary mb-4 border-b border-white/10 pb-2 flex justify-between items-center">
+          <span>Round Rankings</span>
+          <span id="quiz-leaderboard-status" class="text-[10px] text-on-surface-variant">Waiting for host...</span>
+        </h4>
+        <div id="quiz-leaderboard-list" class="space-y-2 mb-6 max-h-72 overflow-y-auto">
+          <!-- Rankings table list -->
         </div>
       </div>
 
@@ -938,6 +962,42 @@
       </div>
 
       <div class="glass-panel p-6 md:p-8 rounded-3xl border border-white/10 shadow-xl space-y-6">
+        <!-- Option switcher: Create Manually vs Upload Excel -->
+        <div class="flex border-b border-white/10 pb-4 gap-4">
+          <button id="creator-tab-manual" onclick="creatorStudio.setTab('manual')" class="px-4 py-2 bg-gradient-to-r from-primary to-secondary text-on-primary font-bold text-xs rounded-xl shadow-md">
+            Option A: Create Quiz Manually
+          </button>
+          <button id="creator-tab-excel" onclick="creatorStudio.setTab('excel')" class="px-4 py-2 border border-white/10 text-on-surface-variant hover:bg-white/5 font-bold text-xs rounded-xl">
+            Option B: Upload Excel Template
+          </button>
+        </div>
+
+        <!-- Excel Upload Panel -->
+        <div id="creator-excel-panel" class="hidden bg-[#020617] border border-white/5 p-6 rounded-2xl space-y-4">
+          <h5 class="text-xs font-bold uppercase tracking-wider text-secondary flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm">upload_file</span>
+            Import Quiz from Excel Spreadsheet
+          </h5>
+          <p class="text-xs text-on-surface-variant leading-relaxed">
+            Upload an Excel file (<code>.xlsx</code> or <code>.xls</code>) containing the quiz questions. The spreadsheet must have these column headers:
+          </p>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px] uppercase font-bold text-secondary font-mono tracking-wide bg-white/5 p-3 rounded-lg border border-white/5">
+            <span>• Question</span>
+            <span>• Option A</span>
+            <span>• Option B</span>
+            <span>• Option C</span>
+            <span>• Option D</span>
+            <span>• Correct Answer</span>
+            <span>• Timer</span>
+          </div>
+          <div class="pt-2">
+            <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider block mb-2" for="excel-file-input">Choose Excel File</label>
+            <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="w-full text-xs text-on-surface-variant file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-primary/20 file:text-primary hover:file:bg-primary/30 cursor-pointer" onchange="creatorStudio.handleExcelUpload(event)" />
+          </div>
+          <div id="excel-error-msg" class="hidden alert-error p-3 rounded-xl text-xs"></div>
+          <div id="excel-success-msg" class="hidden alert-info p-3 rounded-xl text-xs"></div>
+        </div>
+
         <!-- Part 1: General quiz details -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 pb-6 border-b border-white/5">
           <div class="md:col-span-2 space-y-2">
@@ -1038,61 +1098,63 @@
         </div>
 
         <!-- Part 3: Live interactive builder inputs -->
-        <div class="bg-[#020617] border border-white/5 p-6 rounded-2xl space-y-4 mt-6">
-          <h5 class="text-xs font-bold uppercase tracking-wider text-secondary flex items-center gap-2">
-            <span class="material-symbols-outlined text-sm">add_circle</span>
-            Add Question Card
-          </h5>
-          
-          <div class="space-y-2">
-            <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="create-q-text">Question Prompt</label>
-            <input class="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-secondary transition-all" id="create-q-text" placeholder="e.g. Which of the following is not a javascript reserved keyword?" type="text"/>
-          </div>
+        <div id="creator-manual-panel" class="space-y-4">
+          <div class="bg-[#020617] border border-white/5 p-6 rounded-2xl space-y-4 mt-6">
+            <h5 class="text-xs font-bold uppercase tracking-wider text-secondary flex items-center gap-2">
+              <span class="material-symbols-outlined text-sm">add_circle</span>
+              Add Question Card
+            </h5>
+            
+            <div class="space-y-2">
+              <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="create-q-text">Question Prompt</label>
+              <input class="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-secondary transition-all" id="create-q-text" placeholder="e.g. Which of the following is not a javascript reserved keyword?" type="text"/>
+            </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="create-opt-a">Option A</label>
-              <input class="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-secondary transition-all text-xs" id="create-opt-a" placeholder="Option A prompt" type="text"/>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="create-opt-a">Option A</label>
+                <input class="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-secondary transition-all text-xs" id="create-opt-a" placeholder="Option A prompt" type="text"/>
+              </div>
+              <div class="space-y-2">
+                <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="create-opt-b">Option B</label>
+                <input class="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-secondary transition-all text-xs" id="create-opt-b" placeholder="Option B prompt" type="text"/>
+              </div>
+              <div class="space-y-2">
+                <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="create-opt-c">Option C</label>
+                <input class="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-secondary transition-all text-xs" id="create-opt-c" placeholder="Option C prompt" type="text"/>
+              </div>
+              <div class="space-y-2">
+                <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="create-opt-d">Option D</label>
+                <input class="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-secondary transition-all text-xs" id="create-opt-d" placeholder="Option D prompt" type="text"/>
+              </div>
             </div>
-            <div class="space-y-2">
-              <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="create-opt-b">Option B</label>
-              <input class="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-secondary transition-all text-xs" id="create-opt-b" placeholder="Option B prompt" type="text"/>
-            </div>
-            <div class="space-y-2">
-              <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="create-opt-c">Option C</label>
-              <input class="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-secondary transition-all text-xs" id="create-opt-c" placeholder="Option C prompt" type="text"/>
-            </div>
-            <div class="space-y-2">
-              <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="create-opt-d">Option D</label>
-              <input class="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-secondary transition-all text-xs" id="create-opt-d" placeholder="Option D prompt" type="text"/>
-            </div>
-          </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            <div class="space-y-2">
-              <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="create-correct-opt">Correct Answer Option</label>
-              <select class="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-secondary transition-all text-xs" id="create-correct-opt">
-                <option value="A">Option A</option>
-                <option value="B">Option B</option>
-                <option value="C">Option C</option>
-                <option value="D">Option D</option>
-              </select>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div class="space-y-2">
+                <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="create-correct-opt">Correct Answer Option</label>
+                <select class="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-secondary transition-all text-xs" id="create-correct-opt">
+                  <option value="A">Option A</option>
+                  <option value="B">Option B</option>
+                  <option value="C">Option C</option>
+                  <option value="D">Option D</option>
+                </select>
+              </div>
+              <div class="space-y-2">
+                <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="create-timer">Time Limit (Seconds)</label>
+                <select class="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-secondary transition-all text-xs" id="create-timer">
+                  <option value="10">10 Seconds (Fast)</option>
+                  <option value="15" selected>15 Seconds (Normal)</option>
+                  <option value="20">20 Seconds (Relaxed)</option>
+                  <option value="30">30 Seconds (Extended)</option>
+                </select>
+              </div>
             </div>
-            <div class="space-y-2">
-              <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider" for="create-timer">Time Limit (Seconds)</label>
-              <select class="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-on-surface focus:outline-none focus:border-secondary transition-all text-xs" id="create-timer">
-                <option value="10">10 Seconds (Fast)</option>
-                <option value="15" selected>15 Seconds (Normal)</option>
-                <option value="20">20 Seconds (Relaxed)</option>
-                <option value="30">30 Seconds (Extended)</option>
-              </select>
-            </div>
-          </div>
 
-          <button onclick="creatorStudio.addQuestion()" class="w-full py-2.5 border border-dashed border-secondary hover:bg-secondary/10 hover:border-secondary transition-all text-secondary font-bold text-xs rounded-xl flex items-center justify-center gap-2 mt-4">
-            <span class="material-symbols-outlined text-sm">add</span>
-            Add Question to Quiz
-          </button>
+            <button onclick="creatorStudio.addQuestion()" class="w-full py-2.5 border border-dashed border-secondary hover:bg-secondary/10 hover:border-secondary transition-all text-secondary font-bold text-xs rounded-xl flex items-center justify-center gap-2 mt-4">
+              <span class="material-symbols-outlined text-sm">add</span>
+              Add Question to Quiz
+            </button>
+          </div>
         </div>
 
         <!-- Form controls -->
@@ -1227,6 +1289,65 @@
           </button>
           <button id="lobby-start-btn" onclick="lobbyEngine.startGame()" class="flex-1 py-3 bg-gradient-to-r from-primary to-secondary text-on-primary font-bold text-sm rounded-xl hover:shadow-[0_0_20px_rgba(208,188,255,0.2)]">
             Start Game
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 7b. HOST CONTROL VIEW -->
+    <div id="view-host-control" class="view-section hidden container mx-auto px-margin-mobile md:px-margin-desktop py-12 max-w-[800px] text-center">
+      <div class="glass-modal max-w-3xl mx-auto p-8 rounded-3xl border border-white/15 text-center shadow-2xl relative">
+        <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+          <div class="text-left">
+            <span class="text-xs uppercase font-bold text-secondary tracking-widest block text-left">Live Presenter Mode</span>
+            <h3 id="hc-quiz-title" class="text-lg font-bold text-on-surface leading-tight text-left">Quiz Title</h3>
+            <span id="hc-q-index" class="text-xs text-on-surface-variant font-label-md mt-1 block text-left">Question 1 of 10</span>
+          </div>
+          <!-- Timer count -->
+          <div class="relative w-16 h-16 flex items-center justify-center bg-background rounded-full border border-white/10 shadow-[0_0_15px_rgba(76,215,246,0.1)]">
+            <svg class="absolute inset-0 w-full h-full -rotate-90">
+              <circle class="text-white/10" stroke-width="3" stroke="currentColor" fill="transparent" r="26" cx="32" cy="32"/>
+              <circle class="text-secondary transition-all duration-1000" id="hc-timer-svg-circle" stroke-width="3" stroke-dasharray="163.36" stroke-dashoffset="0" stroke-linecap="round" stroke="currentColor" fill="transparent" r="26" cx="32" cy="32"/>
+            </svg>
+            <span id="hc-timer" class="text-sm font-bold text-secondary relative z-10 font-label-md">15</span>
+          </div>
+        </div>
+
+        <!-- Question View for Host -->
+        <div id="hc-question-panel" class="mb-6 text-left">
+          <p id="hc-question-text" class="text-lg md:text-xl font-bold text-on-surface mb-6 leading-relaxed">
+            Question text goes here
+          </p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" id="hc-options-grid">
+            <!-- Options display -->
+          </div>
+          <div class="bg-white/5 border border-white/10 p-5 rounded-2xl flex items-center justify-between">
+            <div>
+              <p class="text-xs text-on-surface-variant font-bold uppercase tracking-wider">Submissions</p>
+              <p class="text-2xl font-bold text-primary mt-1" id="hc-answered-count">0 / 0 answered</p>
+            </div>
+            <button id="hc-skip-btn" onclick="lobbyEngine.skipQuestion()" class="px-6 py-3 border border-white/10 rounded-xl font-bold text-sm text-on-surface hover:bg-white/5 transition-all">
+              Skip Timer
+            </button>
+          </div>
+        </div>
+
+        <!-- Leaderboard Display for Host & Students -->
+        <div id="hc-leaderboard-panel" class="hidden text-left mb-6">
+          <h4 class="text-sm font-bold uppercase tracking-wider text-on-surface-variant mb-4 border-b border-white/10 pb-2">Round Standings</h4>
+          <div id="hc-leaderboard-list" class="space-y-2 mb-6 max-h-60 overflow-y-auto">
+            <!-- Populated dynamically -->
+          </div>
+          <button id="hc-next-btn" onclick="lobbyEngine.nextStep()" class="w-full py-3 bg-gradient-to-r from-primary to-secondary text-on-primary font-bold text-sm rounded-xl">
+            Next Question
+          </button>
+        </div>
+
+        <!-- Podium trigger for Host -->
+        <div id="hc-podium-panel" class="hidden text-left mb-6">
+          <p class="text-sm text-on-surface-variant mb-6 text-center">All questions answered! Click below to show final podium standings.</p>
+          <button onclick="lobbyEngine.showFinalPodium()" class="w-full py-3 bg-gradient-to-r from-green-400 to-emerald-600 text-white font-bold text-sm rounded-xl shadow-[0_0_20px_rgba(52,211,153,0.3)]">
+            Show Final Podium
           </button>
         </div>
       </div>

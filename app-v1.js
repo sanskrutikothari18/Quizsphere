@@ -101,7 +101,7 @@ class Router {
 
   navigate(view, params = {}) {
     // Check authentication for protected views
-    const protectedViews = ['dashboard', 'creator', 'analytics', 'quiz', 'lobby', 'podium'];
+    const protectedViews = ['dashboard', 'creator', 'analytics', 'quiz', 'lobby', 'podium', 'host-control'];
     if (protectedViews.includes(view) && !userState.loggedIn) {
       this.navigate('auth', { mode: 'login' });
       return;
@@ -126,6 +126,8 @@ class Router {
         analytics.render();
       } else if (view === 'lobby') {
         lobbyEngine.initLobby(params.pin, params.quizId, params.isHost);
+      } else if (view === 'host-control') {
+        lobbyEngine.initHostControl(params.pin, params.quizId);
       } else if (view === 'podium') {
         lobbyEngine.renderPodium(params.results, params.pin);
       }
@@ -1061,12 +1063,174 @@ const quizEngine = new QuizEngine();
 window.quizEngine = quizEngine;
 
 // ==========================================
+// 6.5. SPEED SCORING UTILITY
+// ==========================================
+function calculateSpeedScore(timeTaken) {
+  const seconds = Math.floor(timeTaken);
+  const score = 110 - (seconds * 10);
+  return Math.max(10, Math.min(100, score));
+}
+window.calculateSpeedScore = calculateSpeedScore;
+
+// ==========================================
 // 7. CREATOR STUDIO PANEL
 // ==========================================
 class CreatorStudio {
   constructor() {
     this.questions = [];
     this.syncInterval = null;
+    this.currentTab = 'manual';
+  }
+
+  setTab(tabName) {
+    audioSynth.playClick();
+    this.currentTab = tabName;
+    
+    const manualBtn = document.getElementById('creator-tab-manual');
+    const excelBtn = document.getElementById('creator-tab-excel');
+    const manualPanel = document.getElementById('creator-manual-panel');
+    const excelPanel = document.getElementById('creator-excel-panel');
+    
+    if (tabName === 'manual') {
+      if (manualBtn) {
+        manualBtn.className = 'px-4 py-2 bg-gradient-to-r from-primary to-secondary text-on-primary font-bold text-xs rounded-xl shadow-md';
+      }
+      if (excelBtn) {
+        excelBtn.className = 'px-4 py-2 border border-white/10 text-on-surface-variant hover:bg-white/5 font-bold text-xs rounded-xl';
+      }
+      if (manualPanel) manualPanel.classList.remove('hidden');
+      if (excelPanel) excelPanel.classList.add('hidden');
+    } else {
+      if (manualBtn) {
+        manualBtn.className = 'px-4 py-2 border border-white/10 text-on-surface-variant hover:bg-white/5 font-bold text-xs rounded-xl';
+      }
+      if (excelBtn) {
+        excelBtn.className = 'px-4 py-2 bg-gradient-to-r from-primary to-secondary text-on-primary font-bold text-xs rounded-xl shadow-md';
+      }
+      if (manualPanel) manualPanel.classList.add('hidden');
+      if (excelPanel) excelPanel.classList.remove('hidden');
+    }
+  }
+
+  handleExcelUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const errorEl = document.getElementById('excel-error-msg');
+    const successEl = document.getElementById('excel-success-msg');
+    
+    if (errorEl) errorEl.classList.add('hidden');
+    if (successEl) successEl.classList.add('hidden');
+
+    // Check file type
+    if (!file.name.match(/\.(xlsx|xls)$/i)) {
+      if (errorEl) {
+        errorEl.textContent = '❌ Only .xlsx and .xls files are supported.';
+        errorEl.classList.remove('hidden');
+      }
+      return;
+    }
+
+    // Use SheetJS library (already added to HTML via CDN)
+    if (typeof XLSX === 'undefined') {
+      if (errorEl) {
+        errorEl.textContent = '❌ SheetJS library not loaded. Please refresh the page.';
+        errorEl.classList.remove('hidden');
+      }
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+        // Validate and parse questions
+        const parsedQuestions = [];
+        const errors = [];
+
+        jsonData.forEach((row, rowIdx) => {
+          const q = row.Question ? row.Question.trim() : '';
+          const optA = row['Option A'] ? row['Option A'].trim() : '';
+          const optB = row['Option B'] ? row['Option B'].trim() : '';
+          const optC = row['Option C'] ? row['Option C'].trim() : '';
+          const optD = row['Option D'] ? row['Option D'].trim() : '';
+          const correctAnswer = row['Correct Answer'] ? row['Correct Answer'].trim().toUpperCase() : '';
+          const timerStr = row.Timer ? String(row.Timer).trim() : '15';
+
+          // Validation checks
+          if (!q) {
+            errors.push(`Row ${rowIdx + 2}: Question is empty`);
+            return;
+          }
+          if (!optA || !optB || !optC || !optD) {
+            errors.push(`Row ${rowIdx + 2}: One or more options are empty`);
+            return;
+          }
+          if (!['A', 'B', 'C', 'D'].includes(correctAnswer)) {
+            errors.push(`Row ${rowIdx + 2}: Correct Answer must be A, B, C, or D (found: "${correctAnswer}")`);
+            return;
+          }
+
+          // Validate correct answer matches an option
+          const correctIdx = { A: 0, B: 1, C: 2, D: 3 }[correctAnswer];
+          const options = [optA, optB, optC, optD];
+          // Note: Validation allows any option as correct; user must ensure accuracy
+
+          const timer = parseInt(timerStr);
+          if (isNaN(timer) || timer < 10 || timer > 30) {
+            errors.push(`Row ${rowIdx + 2}: Timer must be between 10-30 seconds (found: ${timerStr})`);
+            return;
+          }
+
+          parsedQuestions.push({
+            q: q,
+            options: options,
+            correct: correctIdx,
+            timer: timer
+          });
+        });
+
+        if (errors.length > 0) {
+          if (errorEl) {
+            errorEl.innerHTML = `<strong>Validation Errors:</strong><br>${errors.map(e => `• ${e}`).join('<br>')}`;
+            errorEl.classList.remove('hidden');
+          }
+          return;
+        }
+
+        if (parsedQuestions.length === 0) {
+          if (errorEl) {
+            errorEl.textContent = '❌ No valid questions found in the Excel file.';
+            errorEl.classList.remove('hidden');
+          }
+          return;
+        }
+
+        // Success: merge questions into the builder
+        this.questions = parsedQuestions;
+        this.renderQuestionsList();
+
+        if (successEl) {
+          successEl.innerHTML = `✅ Successfully imported <strong>${parsedQuestions.length}</strong> questions! Review them below and click "Publish Quiz" to save.`;
+          successEl.classList.remove('hidden');
+        }
+
+        // Reset file input
+        event.target.value = '';
+      } catch (err) {
+        console.error('Excel parse error:', err);
+        if (errorEl) {
+          errorEl.textContent = `❌ Error reading Excel file: ${err.message}`;
+          errorEl.classList.remove('hidden');
+        }
+      }
+    };
+
+    reader.readAsArrayBuffer(file);
   }
 
   reset() {
@@ -1088,6 +1252,18 @@ class CreatorStudio {
     document.getElementById('create-opt-b').value = '';
     document.getElementById('create-opt-c').value = '';
     document.getElementById('create-opt-d').value = '';
+    
+    // Reset tab to manual
+    this.setTab('manual');
+    
+    // Clear Excel messages
+    const errorEl = document.getElementById('excel-error-msg');
+    const successEl = document.getElementById('excel-success-msg');
+    if (errorEl) errorEl.classList.add('hidden');
+    if (successEl) successEl.classList.add('hidden');
+    
+    const fileInput = document.getElementById('excel-file-input');
+    if (fileInput) fileInput.value = '';
     
     this.renderQuestionsList();
   }
@@ -1728,7 +1904,7 @@ class LobbyEngine {
     }
     const pin = quiz.pin ? quiz.pin.toString() : Math.floor(100000 + Math.random() * 900000).toString();
     const cleanPin = pin.replace(/\s/g, '');
-    const apiBase = (localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
+    const apiBase = (window.QS_API_BASE || localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
 
     // POST /api/create to register room on backend
     fetch(`${apiBase}/api/create`, {
@@ -1765,7 +1941,7 @@ class LobbyEngine {
       return;
     }
 
-    const apiBase = (localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
+    const apiBase = (window.QS_API_BASE || localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
     fetch(`${apiBase}/api/room/${cleaned}`)
       .then(res => {
         if (!res.ok) throw new Error();
@@ -1781,7 +1957,7 @@ class LobbyEngine {
 
   showStudentJoinForm(pin, serverQuiz) {
     const cleanPin = pin ? pin.toString().replace(/\s/g, '') : '';
-    const apiBase = (localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
+    const apiBase = (window.QS_API_BASE || localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
 
     const existing = document.getElementById('student-join-overlay');
     if (existing) existing.remove();
@@ -1860,7 +2036,7 @@ class LobbyEngine {
     const grid = document.getElementById('lobby-players-grid');
     grid.innerHTML = '';
 
-    const apiBase = (localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
+    const apiBase = (window.QS_API_BASE || localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
 
     // Poll the backend room details for players & game start status
     clearInterval(this.joinTimer);
@@ -1928,7 +2104,7 @@ class LobbyEngine {
       'Are you sure you want to delete this live quiz room? All joined students will be disconnected.',
       () => {
         const cleanPin = this.activeRoomPin.replace(/\s/g, '');
-        const apiBase = (localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
+        const apiBase = (window.QS_API_BASE || localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
         fetch(`${apiBase}/api/room/${cleanPin}`, { method: 'DELETE' })
           .then(() => {
             clearInterval(this.joinTimer);
@@ -1954,7 +2130,7 @@ class LobbyEngine {
 
     if (this.isHost && this.activeRoomPin) {
       const cleanPin = this.activeRoomPin.replace(/\s/g, '');
-      const apiBase = (localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
+      const apiBase = (window.QS_API_BASE || localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
 
       // Tell backend to start quiz
       fetch(`${apiBase}/api/start/${cleanPin}`, { method: 'POST' })
@@ -1975,6 +2151,157 @@ class LobbyEngine {
     } else {
       quizEngine.start(this.activeQuizId);
     }
+  }
+
+  // ==========================================
+  // HOST CONTROL FLOW METHODS (State Machine)
+  // ==========================================
+  
+  // Called when host enters the live control view
+  initHostControl(pin, quizId) {
+    this.activeRoomPin = pin;
+    this.activeQuizId = quizId;
+    this.isHost = true;
+    
+    const cleanPin = pin.replace(/\s/g, '');
+    const apiBase = (window.QS_API_BASE || localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
+    const quiz = quizzesDb.getQuizById(quizId);
+
+    if (!quiz) {
+      alert('Quiz not found');
+      router.navigate('dashboard');
+      return;
+    }
+
+    // Update UI with quiz info
+    document.getElementById('hc-quiz-title').textContent = quiz.title;
+    document.getElementById('hc-q-index').textContent = `Question 1 of ${quiz.questions.length}`;
+
+    // Start polling for room state and student submissions
+    clearInterval(this.hostControlInterval);
+    this.hostControlInterval = setInterval(() => {
+      fetch(`${apiBase}/api/room/${cleanPin}`)
+        .then(res => res.json())
+        .then(roomData => {
+          this.updateHostControlUI(roomData, quiz);
+        })
+        .catch(err => console.error('Host control poll error:', err));
+    }, 1000);
+
+    // Initial load
+    fetch(`${apiBase}/api/room/${cleanPin}`)
+      .then(res => res.json())
+      .then(roomData => {
+        this.updateHostControlUI(roomData, quiz);
+      })
+      .catch(err => console.error(err));
+  }
+
+  updateHostControlUI(roomData, quiz) {
+    if (!roomData) return;
+
+    const questionPanel = document.getElementById('hc-question-panel');
+    const leaderboardPanel = document.getElementById('hc-leaderboard-panel');
+    const podiumPanel = document.getElementById('hc-podium-panel');
+
+    if (roomData.state === 'playing') {
+      // Show question
+      if (questionPanel) questionPanel.classList.remove('hidden');
+      if (leaderboardPanel) leaderboardPanel.classList.add('hidden');
+      if (podiumPanel) podiumPanel.classList.add('hidden');
+
+      const qIdx = roomData.currentQuestionIndex || 0;
+      const question = quiz.questions[qIdx];
+      if (question) {
+        document.getElementById('hc-question-text').textContent = question.q;
+        document.getElementById('hc-q-index').textContent = `Question ${qIdx + 1} of ${quiz.questions.length}`;
+
+        // Display options
+        const optionsGrid = document.getElementById('hc-options-grid');
+        optionsGrid.innerHTML = '';
+        question.options.forEach((opt, idx) => {
+          const btn = document.createElement('div');
+          btn.className = 'p-4 rounded-xl border border-white/10 bg-white/5 text-on-surface text-left';
+          btn.innerHTML = `<span class="font-bold">${String.fromCharCode(65 + idx)}:</span> ${opt}`;
+          optionsGrid.appendChild(btn);
+        });
+
+        // Count answered students
+        const answered = roomData.scores.filter(s => s.lastQuestionAnswered >= qIdx).length;
+        document.getElementById('hc-answered-count').textContent = `${answered} / ${roomData.scores.length} answered`;
+      }
+    } else if (roomData.state === 'leaderboard') {
+      // Show leaderboard
+      if (questionPanel) questionPanel.classList.add('hidden');
+      if (leaderboardPanel) leaderboardPanel.classList.remove('hidden');
+      if (podiumPanel) podiumPanel.classList.add('hidden');
+
+      const leaderboardList = document.getElementById('hc-leaderboard-list');
+      leaderboardList.innerHTML = '';
+      roomData.scores.forEach((player, idx) => {
+        const row = document.createElement('div');
+        row.className = 'flex justify-between items-center p-3 rounded-xl border border-white/5 bg-white/5 text-xs';
+        let rankBadge = 'text-on-surface-variant';
+        if (idx === 0) rankBadge = 'text-yellow-400 font-bold';
+        else if (idx === 1) rankBadge = 'text-slate-300 font-bold';
+        else if (idx === 2) rankBadge = 'text-amber-600 font-bold';
+
+        row.innerHTML = `
+          <div class="flex items-center gap-3">
+            <span class="w-5 text-center font-bold ${rankBadge}">#${idx + 1}</span>
+            <span class="font-bold">${player.name}</span>
+          </div>
+          <div class="flex items-center gap-6">
+            <span class="text-on-surface-variant">${player.correct} correct</span>
+            <span class="font-mono font-bold text-secondary">${player.time}s</span>
+          </div>
+        `;
+        leaderboardList.appendChild(row);
+      });
+    } else if (roomData.state === 'podium') {
+      // Show podium prompt
+      if (questionPanel) questionPanel.classList.add('hidden');
+      if (leaderboardPanel) leaderboardPanel.classList.add('hidden');
+      if (podiumPanel) podiumPanel.classList.remove('hidden');
+    }
+  }
+
+  skipQuestion() {
+    audioSynth.playClick();
+    const cleanPin = this.activeRoomPin.replace(/\s/g, '');
+    const apiBase = (window.QS_API_BASE || localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
+    
+    fetch(`${apiBase}/api/room/${cleanPin}/next`, { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        console.log('Advanced to leaderboard via skip');
+      })
+      .catch(err => console.error(err));
+  }
+
+  nextStep() {
+    audioSynth.playClick();
+    const cleanPin = this.activeRoomPin.replace(/\s/g, '');
+    const apiBase = (window.QS_API_BASE || localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
+    
+    fetch(`${apiBase}/api/room/${cleanPin}/next`, { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.state === 'podium') {
+          clearInterval(this.hostControlInterval);
+          // Transition to podium view
+          router.navigate('podium', { pin: cleanPin });
+        }
+        console.log('State transitioned to:', data.state);
+      })
+      .catch(err => console.error(err));
+  }
+
+  showFinalPodium() {
+    audioSynth.playFanfare();
+    const cleanPin = this.activeRoomPin.replace(/\s/g, '');
+    clearInterval(this.hostControlInterval);
+    router.navigate('podium', { pin: cleanPin });
   }
 
   finishPinGame(correctCount, totalTimeTaken) {
@@ -2054,7 +2381,7 @@ class LobbyEngine {
     };
 
     if (pin) {
-      const apiBase = (localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
+      const apiBase = (window.QS_API_BASE || localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
       const fetchScores = () => {
         fetch(`${apiBase}/api/room/${pin}`)
           .then(res => res.json())
@@ -2153,20 +2480,133 @@ window.addEventListener('DOMContentLoaded', () => {
       if (pinFromUrl && /^\d{6}$/.test(pinFromUrl)) {
         setTimeout(() => {
           const apiBase = (localStorage.getItem('qs_public_url') || window.location.origin).replace(/\/$/, '');
-          fetch(`${apiBase}/api/room/${pinFromUrl}`)
-            .then(res => {
-              if (!res.ok) throw new Error();
-              return res.json();
-            })
-            .then(roomData => {
-              lobbyEngine.showStudentJoinForm(pinFromUrl, roomData.quiz);
-            })
-            .catch(() => {
-              alert(`No active quiz found on the server with Game PIN "${pinFromUrl}". Ask your teacher if the quiz has been started.`);
-            });
+          const savedName = localStorage.getItem('qs_student_name');
+          const savedEmail = localStorage.getItem('qs_student_email');
+          
+          // Auto-restore persistent student login if previously saved
+          if (savedName && savedEmail) {
+            console.log(`[AUTO-JOIN] Restoring student "${savedName}" via persistent login`);
+            // Restore persistent credentials and auto-join
+            window._studentJoinDirect(pinFromUrl, apiBase, savedName, savedEmail);
+          } else {
+            // First time joining - show join form
+            console.log(`[FIRST-JOIN] Showing join form for PIN ${pinFromUrl}`);
+            fetch(`${apiBase}/api/room/${pinFromUrl}`)
+              .then(res => {
+                if (!res.ok) throw new Error();
+                return res.json();
+              })
+              .then(roomData => {
+                lobbyEngine.showStudentJoinForm(pinFromUrl, roomData.quiz);
+              })
+              .catch(() => {
+                alert(`No active quiz found on the server with Game PIN "${pinFromUrl}". Ask your teacher if the quiz has been started.`);
+              });
+          }
         }, 300);
       }
     });
+
+  // Direct join method bypassing the form modal
+  window._studentJoinDirect = function(pin, apiBase, name, email) {
+    // Show temporary overlay while checking join validity
+    const directOverlay = document.createElement('div');
+    directOverlay.id = 'direct-joining-overlay';
+    directOverlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,0.97);z-index:9999;display:flex;align-items:center;justify-content:center;color:#e2e8f0;font-size:18px;font-weight:bold;';
+    directOverlay.textContent = 'Restoring session & joining...';
+    document.body.appendChild(directOverlay);
+
+    fetch(`${apiBase}/api/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: pin, name: name, email: email })
+    })
+    .then(res => res.json())
+    .then(data => {
+      directOverlay.remove();
+      if (!data.success) {
+        // Clear corrupt storage and load fallback form
+        localStorage.removeItem('qs_student_name');
+        localStorage.removeItem('qs_student_email');
+        lobbyEngine.showStudentJoinForm(pin, null);
+        return;
+      }
+      
+      // Successfully auto-joined, render waiting screen
+      window._showStudentWaitingScreen(pin, apiBase, name, email, data.quizTitle);
+    })
+    .catch(() => {
+      directOverlay.remove();
+      // Server down, load fallback form
+      lobbyEngine.showStudentJoinForm(pin, null);
+    });
+  };
+
+  // Helper method to render the player lobby waiting screen
+  window._showStudentWaitingScreen = function(pin, apiBase, name, email, quizTitle) {
+    // Remove waiting overlay if it exists
+    const oldOverlay = document.getElementById('student-waiting-overlay');
+    if (oldOverlay) oldOverlay.remove();
+
+    const waitOverlay = document.createElement('div');
+    waitOverlay.id = 'student-waiting-overlay';
+    waitOverlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,0.97);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    waitOverlay.innerHTML = `
+      <div style="background:rgba(26,22,49,0.95);border:1px solid rgba(99,102,241,0.25);border-radius:24px;padding:40px 32px;max-width:380px;width:100%;text-align:center;box-shadow:0 0 60px rgba(99,102,241,0.15);">
+        <div style="font-size:64px;animation:spin 3s linear infinite;display:inline-block;margin-bottom:16px;">⏳</div>
+        <h2 style="font-size:22px;font-weight:800;color:#e2e8f0;margin-bottom:8px;">You're In! 🎉</h2>
+        <p style="color:#8b5cf6;font-weight:700;font-size:18px;margin-bottom:4px;">${name}</p>
+        <p style="color:#94a3b8;font-size:13px;margin-bottom:20px;">${email}</p>
+        <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:12px;padding:12px 16px;margin-bottom:20px;">
+          <span style="font-size:11px;font-weight:700;text-transform:uppercase;color:#8b5cf6;letter-spacing:0.1em;">Quiz</span>
+          <p style="font-size:16px;font-weight:700;color:#e2e8f0;margin-top:4px;">${quizTitle || 'Live Quiz'}</p>
+        </div>
+        <p style="color:#94a3b8;font-size:14px;">Waiting for teacher to start the quiz...</p>
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:16px;">
+          <div style="width:8px;height:8px;background:#6366f1;border-radius:50%;animation:pulse 1.2s infinite;"></div>
+          <div style="width:8px;height:8px;background:#6366f1;border-radius:50%;animation:pulse 1.2s infinite 0.4s;"></div>
+          <div style="width:8px;height:8px;background:#6366f1;border-radius:50%;animation:pulse 1.2s infinite 0.8s;"></div>
+        </div>
+        <p style="font-size:11px;color:#94a3b8;margin-top:20px;">PIN: ${pin}</p>
+      </div>
+      <style>
+        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes pulse { 0%,100%{opacity:0.3;transform:scale(0.8)} 50%{opacity:1;transform:scale(1.2)} }
+      </style>
+    `;
+    document.body.appendChild(waitOverlay);
+
+    // Poll for quiz start using the apiBase URL
+    const pollInterval = setInterval(() => {
+      fetch(`${apiBase}/api/room/${pin}`)
+        .then(res => {
+          if (!res.ok) throw new Error('Room closed');
+          return res.json();
+        })
+        .then(roomData => {
+          if (roomData.error) throw new Error(roomData.error);
+          
+          if (roomData.state === 'playing') {
+            clearInterval(pollInterval);
+            waitOverlay.remove();
+            
+            // Set student connection references
+            quizEngine.activeRoomPin = pin;
+            quizEngine.activePlayerName = name;
+            quizEngine.activeApiBase = apiBase;
+            
+            // Trigger simultaneous start sync
+            quizEngine.startWithData(roomData.quiz);
+          }
+        })
+        .catch(() => {
+          clearInterval(pollInterval);
+          waitOverlay.remove();
+          alert('This quiz room has been closed or deleted by the host.');
+          router.navigate('landing');
+        });
+    }, 1500);
+  };
 
   // Global function for student join button
   window._studentJoin = function(pin, apiBase) {
@@ -2178,7 +2618,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const name = nameEl ? nameEl.value.trim() : '';
     const email = emailEl ? emailEl.value.trim() : '';
 
-    // Validate
     if (!name) {
       errorEl.textContent = 'Please enter your name.';
       errorEl.style.display = 'block';
@@ -2219,69 +2658,16 @@ window.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Remove join form, show waiting room
+      // Persist credentials locally
+      localStorage.setItem('qs_student_name', name);
+      localStorage.setItem('qs_student_email', email);
+
+      // Remove join form
       const joinOverlay = document.getElementById('student-join-overlay');
       if (joinOverlay) joinOverlay.remove();
 
-      // Show waiting overlay
-      const waitOverlay = document.createElement('div');
-      waitOverlay.id = 'student-waiting-overlay';
-      waitOverlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,0.97);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
-      waitOverlay.innerHTML = `
-        <div style="background:rgba(11,19,38,0.95);border:1px solid rgba(208,188,255,0.2);border-radius:24px;padding:40px 32px;max-width:380px;width:100%;text-align:center;box-shadow:0 0 60px rgba(208,188,255,0.08);">
-          <div style="font-size:64px;animation:spin 3s linear infinite;display:inline-block;margin-bottom:16px;">⏳</div>
-          <h2 style="font-size:22px;font-weight:800;color:#dae2fd;margin-bottom:8px;">You're In! 🎉</h2>
-          <p style="color:#4cd7f6;font-weight:700;font-size:18px;margin-bottom:4px;">${name}</p>
-          <p style="color:#958ea0;font-size:13px;margin-bottom:20px;">${email}</p>
-          <div style="background:rgba(76,215,246,0.06);border:1px solid rgba(76,215,246,0.2);border-radius:12px;padding:12px 16px;margin-bottom:20px;">
-            <span style="font-size:11px;font-weight:700;text-transform:uppercase;color:#4cd7f6;letter-spacing:0.1em;">Quiz</span>
-            <p style="font-size:16px;font-weight:700;color:#dae2fd;margin-top:4px;">${data.quizTitle || 'Live Quiz'}</p>
-          </div>
-          <p style="color:#958ea0;font-size:14px;">Waiting for teacher to start the quiz...</p>
-          <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:16px;">
-            <div style="width:8px;height:8px;background:#d0bcff;border-radius:50%;animation:pulse 1.2s infinite;"></div>
-            <div style="width:8px;height:8px;background:#d0bcff;border-radius:50%;animation:pulse 1.2s infinite 0.4s;"></div>
-            <div style="width:8px;height:8px;background:#d0bcff;border-radius:50%;animation:pulse 1.2s infinite 0.8s;"></div>
-          </div>
-          <p style="font-size:11px;color:#494454;margin-top:20px;">PIN: ${pin}</p>
-        </div>
-        <style>
-          @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-          @keyframes pulse { 0%,100%{opacity:0.3;transform:scale(0.8)} 50%{opacity:1;transform:scale(1.2)} }
-        </style>
-      `;
-      document.body.appendChild(waitOverlay);
-
-      // Poll for quiz start using the apiBase URL
-      const pollInterval = setInterval(() => {
-        fetch(`${apiBase}/api/room/${pin}`)
-          .then(res => {
-            if (!res.ok) {
-              throw new Error('Room closed');
-            }
-            return res.json();
-          })
-          .then(roomData => {
-            if (roomData.error) {
-              throw new Error(roomData.error);
-            }
-            if (roomData.state === 'playing') {
-              clearInterval(pollInterval);
-              waitOverlay.remove();
-              quizEngine.activeRoomPin = pin;
-              quizEngine.activePlayerName = name;
-              quizEngine.activeApiBase = apiBase;
-              quizEngine.startWithData(roomData.quiz);
-            }
-          })
-          .catch(() => {
-            // Room was deleted/closed or network error occurred
-            clearInterval(pollInterval);
-            waitOverlay.remove();
-            alert('This quiz room has been closed or deleted by the host.');
-            router.navigate('landing');
-          });
-      }, 1500);
+      // Show waiting screen
+      window._showStudentWaitingScreen(pin, apiBase, name, email, data.quizTitle);
     })
     .catch(() => {
       errorEl.textContent = 'Cannot connect to server. Make sure you are using the correct link from your teacher.';
